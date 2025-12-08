@@ -8,13 +8,13 @@ namespace MekanRehberi
         public string Password { get; set; }
         public string Nickname { get; set; }
         public string UserStatus { get; set; }
-        
+
         public List<Mekan> Favorites { get; set; } = new List<Mekan>();
         public List<UserRatings> MyRatings { get; set; } = new List<UserRatings>();
-        
+
         public User() { }
 
-        public User(string name, string password, string nickname, string userStatus) 
+        public User(string name, string password, string nickname, string userStatus)
         {
             Name = name;
             Password = password;
@@ -31,6 +31,25 @@ namespace MekanRehberi
 
             UserRatings newRating = new UserRatings(mekan, score, comment);
             this.MyRatings.Add(newRating);
+        }
+
+        public bool ToggleFavorite(Mekan mekan)
+        {
+            if (Favorites.Contains(mekan))
+            {
+                Favorites.Remove(mekan);
+                return false;
+            }
+            else
+            {
+                Favorites.Add(mekan);
+                return true;
+            }
+        }
+
+        public bool IsFavorite(Mekan mekan)
+        {
+            return Favorites.Contains(mekan);
         }
     }
 }
