@@ -2,50 +2,43 @@ namespace MekanRehberi
 {
     public class Mekan
     {
+        public int Id { get; set; }
         public string Name { get; set; }
-        public string Description { get; set; }
-        public string ImageURL { get; set; }
-        public double Rating { get; set; } = 0;
-        public int RatingNumber { get; set; } = 0;
-        public int FavoriteNumber { get; set; } = 0;
-        public string Type { get; set; }
-        public string MapsURL { get; set; }
-        public int ID { get; set; }
+        public string ImageUrl { get; set; }
+        
+        public int TotalScore { get; set; }
+        public int VoteCount { get; set; }
+        public int FavoriteCount { get; set; }
+
+        public double AverageScore
+        {
+            get
+            {
+                if (VoteCount == 0) return 0;
+                return (double)TotalScore / VoteCount;
+            }
+        }
 
         public Mekan() { }
 
-        public Mekan(string name, string description, string imageURL, double rating, string type, string mapsURL, int id)
+        public void AddPoint(int score)
         {
-            Name = name;
-            Description = description;
-            ImageURL = imageURL;
-            Rating = rating;
-            Type = type;
-            MapsURL = mapsURL;
-            ID = id;
+            TotalScore += score;
+            VoteCount++;
         }
 
-        public void AddPoint(int newScore)
+        public void UpdatePoint(int oldScore, int newScore)
         {
-            double totalScore = this.Rating * this.RatingNumber;
-            totalScore += newScore;
-            this.RatingNumber++;
-            this.Rating = totalScore / this.RatingNumber;
+            TotalScore = TotalScore - oldScore + newScore;
         }
 
-        public void ChangeFavorite(bool isAdd)
+        public void ChangeFavorite(bool isAdding)
         {
-            if (isAdd)
-            {
-                this.FavoriteNumber++;
-            }
+            if (isAdding)
+                FavoriteCount++;
             else
             {
-                this.FavoriteNumber--;
-                if (this.FavoriteNumber < 0)
-                {
-                    this.FavoriteNumber = 0;
-                }
+                if(FavoriteCount > 0) FavoriteCount--;
             }
         }
     }
