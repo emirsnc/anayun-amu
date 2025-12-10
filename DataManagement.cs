@@ -200,7 +200,24 @@ namespace MekanRehberi
     }
 }
 
-       
+       public static void InsertUserRating(string userNick, int mekanId, int score, string comment)
+{
+    using (var conn = new SQLiteConnection("Data Source=UserDB.db"))
+    {
+        conn.Open();
+        string query = "INSERT INTO UserRatings (UserNickname, MekanId, Score, Comment) VALUES (@u, @m, @s, @c)";
+
+        using (var cmd = new SQLiteCommand(query, conn))
+        {
+            cmd.Parameters.AddWithValue("@u", userNick);
+            cmd.Parameters.AddWithValue("@m", mekanId);
+            cmd.Parameters.AddWithValue("@s", score);
+            cmd.Parameters.AddWithValue("@c", comment);
+            cmd.ExecuteNonQuery();
+        }
+    }
+}
+
         public static User GetUserFromDb(string nickname, string password)
         {
             using (SQLiteConnection conn = new SQLiteConnection(userConnString))
