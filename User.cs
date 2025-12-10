@@ -27,30 +27,43 @@ namespace MekanRehberi
             if (score < 1) score = 1;
             if (score > 5) score = 5;
 
-            mekan.AddPoint(score);
+            UserRatings existingRating = MyRatings.Find(r => r.Mekan.Id == mekan.Id);
 
-            UserRatings newRating = new UserRatings(mekan, score, comment);
-            this.MyRatings.Add(newRating);
+            if (existingRating != null)
+            {
+                mekan.UpdatePoint(existingRating.Score, score); 
+                existingRating.Score = score;
+                existingRating.Comment = comment;
+            }
+            else
+            {
+                mekan.AddPoint(score);
+                UserRatings newRating = new UserRatings(mekan, score, comment);
+                this.MyRatings.Add(newRating);
+            }
         }
 
         public bool ToggleFavorite(Mekan mekan)
         {
-            if (Favorites.Contains(mekan))
+            Mekan foundMekan = Favorites.Find(m => m.Id == mekan.Id);
+
+            if (foundMekan != null)
             {
-                Favorites.Remove(mekan);
-                mekan.ChangeFavorite(false); // EKLENDİ: Mekanın sayacını azalt
-                return false; // Çıkarıldı
+                Favorites.Remove(foundMekan);
+                mekan.ChangeFavorite(false);
+                return false;
             }
             else
             {
-        Favorites.Add(mekan);
-        mekan.ChangeFavorite(true); // EKLENDİ: Mekanın sayacını artır
-        return true; // Eklendi
-    }
-}
+                Favorites.Add(mekan);
+                mekan.ChangeFavorite(true);
+                return true;
+            }
+        }
+
         public bool IsFavorite(Mekan mekan)
         {
-            return Favorites.Contains(mekan);
+            return Favorites.Exists(m => m.Id == mekan.Id);
         }
     }
 }
