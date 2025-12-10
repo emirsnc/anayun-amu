@@ -38,15 +38,16 @@ namespace MekanRehberi
             if (Favorites.Contains(mekan))
             {
                 Favorites.Remove(mekan);
-                return false;
+                mekan.ChangeFavorite(false); // EKLENDİ: Mekanın sayacını azalt
+                return false; // Çıkarıldı
             }
             else
             {
-                Favorites.Add(mekan);
-                return true;
-            }
-        }
-
+        Favorites.Add(mekan);
+        mekan.ChangeFavorite(true); // EKLENDİ: Mekanın sayacını artır
+        return true; // Eklendi
+    }
+}
         public bool IsFavorite(Mekan mekan)
         {
             return Favorites.Contains(mekan);
