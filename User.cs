@@ -23,36 +23,41 @@ namespace MekanRehberi
         }
 
         public void RateMekan(Mekan mekan, int score, string comment)
-{
-    if (score < 1) score = 1;
-    if (score > 5) score = 5;
+        {
+            if (score < 1) score = 1;
+            if (score > 5) score = 5;
 
-    var existingRating = MyRatings.Find(r => r.Mekan.Id == mekan.Id);
+            var existingRating = MyRatings.Find(r => r.Mekan.Id == mekan.Id);
 
-    if (existingRating != null)
-    {
-        // Mekan puanını güncelle
-        mekan.TotalScore -= existingRating.Score;
-        mekan.TotalScore += score;
+            if (existingRating != null)
+            {
+                // -- GÜNCELLEME SENARYOSU --
+                // 1. Mekan nesnesinin puanını güncelle (önce eskisini çıkar, yeniyi ekle)
+                mekan.TotalScore -= existingRating.Score;
+                mekan.TotalScore += score;
 
-        existingRating.Score = score;
-        existingRating.Comment = comment;
+                // 2. Kullanıcının RAM'deki listesini güncelle
+                existingRating.Score = score;
+                existingRating.Comment = comment;
+            }
+            else
+            {
+                // -- YENİ EKLEME SENARYOSU --
+                // 1. Mekan nesnesine puan ekle
+                mekan.AddPoint(score);
+                
+                // 2. Kullanıcının RAM'deki listesine ekle
+                var newRating = new UserRatings(mekan, score, comment);
+                MyRatings.Add(newRating);
+            }
 
-        DataManagement.UpdateUserRating(this.Nickname, mekan.Id, score, comment);
-    }
-    else
-    {
-        mekan.AddPoint(score);
-        var newRating = new UserRatings(mekan, score, comment);
-        MyRatings.Add(newRating);
+            // 3. VERİTABANI GÜNCELLEMELERİ
+            // UserRatings tablosuna yaz (INSERT OR REPLACE kullandığımız için tek metod yeterli)
+            DataManagement.InsertUserRating(this.Nickname, mekan.Id, score, comment);
 
-        DataManagement.InsertUserRating(this.Nickname, mekan.Id, score, comment);
-    }
-
-    // Mekan tablosunu da güncelle
-    DataManagement.UpdateMekanRating(mekan);
-}
-
+            // Mekanlar tablosunda ortalamayı güncelle
+            DataManagement.UpdateMekanRating(mekan);
+        }
 
         public bool ToggleFavorite(Mekan mekan)
         {
