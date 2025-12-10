@@ -2,14 +2,18 @@ namespace MekanRehberi
 {
     public class Mekan
     {
-        public int Id { get; set; }
+        public int Id { get; set; } // ID yerine Id yaptım
         public string Name { get; set; }
-        public string ImageUrl { get; set; }
+        public string Description { get; set; } // VERİTABANI İÇİN GERİ EKLENDİ
+        public string Type { get; set; }        // VERİTABANI İÇİN GERİ EKLENDİ
+        public string ImageUrl { get; set; }    // ImageURL yerine ImageUrl
         
-        public int TotalScore { get; set; }
-        public int VoteCount { get; set; }
-        public int FavoriteCount { get; set; }
+        // Puanlama Sistemi
+        public int TotalScore { get; set; } = 0;
+        public int VoteCount { get; set; } = 0;
+        public int FavoriteCount { get; set; } = 0;
 
+        // Otomatik hesaplanan ortalama (Veritabanına yazılmaz, hesaplanır)
         public double AverageScore
         {
             get
@@ -21,25 +25,18 @@ namespace MekanRehberi
 
         public Mekan() { }
 
+        // Puan Ekleme Metodu
         public void AddPoint(int score)
         {
             TotalScore += score;
             VoteCount++;
         }
 
-        public void UpdatePoint(int oldScore, int newScore)
-        {
-            TotalScore = TotalScore - oldScore + newScore;
-        }
-
+        // Favori Güncelleme
         public void ChangeFavorite(bool isAdding)
         {
-            if (isAdding)
-                FavoriteCount++;
-            else
-            {
-                if(FavoriteCount > 0) FavoriteCount--;
-            }
+            if (isAdding) FavoriteCount++;
+            else if (FavoriteCount > 0) FavoriteCount--;
         }
     }
 }
