@@ -175,6 +175,30 @@ namespace MekanRehberi
                 return "Veritabanı Hatası: " + ex.Message;
             }
         }
+        public static void UpdateMekanRating(Mekan mekan)
+{
+    using (var conn = new SQLiteConnection("Data Source=Mekanlar.db"))
+    {
+        conn.Open();
+        using (var cmd = new SQLiteCommand(conn))
+        {
+            cmd.CommandText = @"
+                UPDATE MekanTable
+                SET Rating = @rating,
+                    FavNumber = @fav,
+                    TotalScore = @totalScore,
+                    VoteCount = @voteCount
+                WHERE ID = @id";
+
+            cmd.Parameters.AddWithValue("@rating", mekan.AverageScore);
+            cmd.Parameters.AddWithValue("@fav", mekan.FavoriteCount);
+            cmd.Parameters.AddWithValue("@totalScore", mekan.TotalScore);
+            cmd.Parameters.AddWithValue("@voteCount", mekan.VoteCount);
+            cmd.Parameters.AddWithValue("@id", mekan.Id);
+            cmd.ExecuteNonQuery();
+        }
+    }
+}
 
        
         public static User GetUserFromDb(string nickname, string password)
