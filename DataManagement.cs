@@ -1,107 +1,78 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite; // NuGet paketini yüklediğinden emin ol
+using System.Data.SQLite;
 using System.IO;
-using System.Linq; 
-using System.Windows.Forms; 
+using System.Linq;
+using System.Windows.Forms;
 
 namespace MekanRehberi
 {
     public static class DataManagement
     {
         // -----------------------------------------------------------
-        // 1. BÖLÜM: MEKAN VERİLERİ (Gezilecek Yerler DB'den Okuma)
+        // 1. BÖLÜM: MEKAN VERİLERİ (gezilecek_yerler.db - Sadece Okuma)
         // -----------------------------------------------------------
-        
-        // Tüm şehirler ve içindeki mekanlar bu listede tutulacak
         public static List<Sehir> AllCities { get; set; } = new List<Sehir>();
 
-        // Mekan veritabanı dosya adı
         private static string placesDbName = "gezilecek_yerler.db";
         private static string placesConnString = $"Data Source={placesDbName};Version=3;";
 
         public static void LoadPlacesFromDatabase()
         {
-            AllCities.Clear(); // Listeyi temizle
+            AllCities.Clear();
 
-            // Dosya kontrolü
             if (!File.Exists(placesDbName))
             {
-                MessageBox.Show("Mekan veritabanı (gezilecek_yerler.db) bulunamadı! Lütfen dosyayı bin/Debug klasörüne attığından emin ol.");
+                MessageBox.Show("Mekan veritabanı (gezilecek_yerler.db) bulunamadı!");
                 return;
             }
 
             using (SQLiteConnection conn = new SQLiteConnection(placesConnString))
             {
-                try
-                {
-                    conn.Open();
-                    
-                    // !!! DİKKAT: Veritabanındaki tablo adı 'Places' ise burayı değiştir
-                    string sql = "SELECT * FROM Mekanlar"; 
+                conn.Open();
+                string sql = "SELECT * FROM Mekanlar";
 
-                    using (SQLiteCommand cmd = new SQLiteCommand(sql, conn))
-                    using (SQLiteDataReader reader = cmd.ExecuteReader())
+                using (SQLiteCommand cmd = new SQLiteCommand(sql, conn))
+                using (SQLiteDataReader reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
                     {
-                        while (reader.Read())
+                        string dbCityName = reader["CityName"].ToString();
+                        Sehir mevcutSehir = AllCities.FirstOrDefault(x => x.Name == dbCityName);
+
+                        if (mevcutSehir == null)
                         {
-                            // --- A) Şehir İşlemleri ---
-                            // Veritabanından Şehir Adını alıyoruz (Sütun adı: CityName)
-                            string dbCityName = reader["CityName"].ToString();
-
-                            // Bu şehir listemizde zaten var mı?
-                            Sehir mevcutSehir = AllCities.FirstOrDefault(x => x.Name == dbCityName);
-
-                            if (mevcutSehir == null)
+                            mevcutSehir = new Sehir()
                             {
-                                // Yoksa yeni şehir oluştur
-                                mevcutSehir = new Sehir();
-                                mevcutSehir.Name = dbCityName;
-                                mevcutSehir.Plaka = 0; // DB'de plaka yoksa 0
-                                mevcutSehir.Description = dbCityName + " şehri.";
-                                mevcutSehir.ImageFileURL = ""; 
-                                AllCities.Add(mevcutSehir);
-                            }
-
-                            // --- B) Mekan İşlemleri ---
-                            Mekan yeniMekan = new Mekan();
-
-                            // Senin yeni Mekan Class yapına göre eşleştirme:
-                            yeniMekan.Id = Convert.ToInt32(reader["ID"]);
-                            yeniMekan.Name = reader["PlaceName"].ToString();
-                            
-                            // Description ve Type veritabanında varsa çek, yoksa varsayılan ata
-                            try { yeniMekan.Description = reader["Description"].ToString(); } catch { yeniMekan.Description = "Açıklama yok."; }
-                            try { yeniMekan.Type = reader["Type"].ToString(); } catch { yeniMekan.Type = "Genel"; }
-                            
-                            yeniMekan.ImageUrl = reader["ImageUrl"].ToString();
-
-                            // --- C) Puanlama Dönüşümü ---
-                            // Veritabanında muhtemelen 'Rating' (örn: 4.5) diye bir sütun var.
-                            // Senin Class'ın ise TotalScore ve VoteCount kullanıyor.
-                            // Bunu dönüştürmemiz lazım:
-                            try 
-                            {
-                                double dbRating = Convert.ToDouble(reader["Rating"]); 
-                                // Ortalamanın veritabanındaki gibi görünmesi için hile yapıyoruz:
-                                yeniMekan.VoteCount = 1; 
-                                yeniMekan.TotalScore = (int)dbRating; 
-                            }
-                            catch 
-                            {
-                                // Eğer Rating sütunu yoksa puanı 0 yap
-                                yeniMekan.VoteCount = 0;
-                                yeniMekan.TotalScore = 0;
-                            }
-
-                            // Mekanı şehre ekle
-                            mevcutSehir.Mekanlar.Add(yeniMekan);
+                                Name = dbCityName,
+                                Plaka = 0,
+                                Description = dbCityName + " şehri.",
+                                ImageFileURL = ""
+                            };
+                            AllCities.Add(mevcutSehir);
                         }
+
+                        Mekan yeniMekan = new Mekan()
+                        {
+                            Id = Convert.ToInt32(reader["ID"]),
+                            Name = reader["PlaceName"].ToString(),
+                            ImageUrl = reader["ImageUrl"].ToString()
+                        };
+
+                        try
+                        {
+                            double dbRating = Convert.ToDouble(reader["Rating"]);
+                            yeniMekan.VoteCount = 1;
+                            yeniMekan.TotalScore = (int)dbRating;
+                        }
+                        catch
+                        {
+                            yeniMekan.VoteCount = 0;
+                            yeniMekan.TotalScore = 0;
+                        }
+
+                        mevcutSehir.Mekanlar.Add(yeniMekan);
                     }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Mekanlar yüklenirken hata oluştu: " + ex.Message);
                 }
             }
         }
@@ -112,34 +83,42 @@ namespace MekanRehberi
         private static string userDbName = "KullaniciVerileri.db";
         private static string userConnString = $"Data Source={userDbName};Version=3;";
 
-        // Program açılışında çağrılacak: Veritabanı yoksa oluşturur
         public static void InitializeUserDatabase()
         {
             if (!File.Exists(userDbName))
-            {
                 SQLiteConnection.CreateFile(userDbName);
-            }
 
             using (SQLiteConnection conn = new SQLiteConnection(userConnString))
             {
                 conn.Open();
-                // Users tablosunu oluştur
-                string sql = @"
+
+                // USERS TABLOSU
+                string sqlUsers = @"
                     CREATE TABLE IF NOT EXISTS Users (
                         ID INTEGER PRIMARY KEY AUTOINCREMENT,
                         Name TEXT,
                         Nickname TEXT UNIQUE,
                         Password TEXT,
                         UserStatus TEXT
-                    )";
-                using (SQLiteCommand cmd = new SQLiteCommand(sql, conn))
-                {
-                    cmd.ExecuteNonQuery();
-                }
+                    );";
+
+                new SQLiteCommand(sqlUsers, conn).ExecuteNonQuery();
+
+                // USERRATINGS TABLOSU
+                string sqlRatings = @"
+                    CREATE TABLE IF NOT EXISTS UserRatings (
+                        ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                        UserNickname TEXT NOT NULL,
+                        MekanId INTEGER NOT NULL,
+                        Score INTEGER NOT NULL,
+                        Comment TEXT,
+                        UNIQUE(UserNickname, MekanId)
+                    );";
+
+                new SQLiteCommand(sqlRatings, conn).ExecuteNonQuery();
             }
         }
 
-        // Kullanıcı Kayıt (Register)
         public static string AddUserToDb(User user)
         {
             try
@@ -147,9 +126,8 @@ namespace MekanRehberi
                 using (SQLiteConnection conn = new SQLiteConnection(userConnString))
                 {
                     conn.Open();
-                    
-                    // Kullanıcı adı kontrolü
                     string checkSql = "SELECT COUNT(*) FROM Users WHERE Nickname = @nick";
+
                     using (SQLiteCommand cmd = new SQLiteCommand(checkSql, conn))
                     {
                         cmd.Parameters.AddWithValue("@nick", user.Nickname);
@@ -157,7 +135,6 @@ namespace MekanRehberi
                         if (count > 0) return "Bu kullanıcı adı zaten alınmış.";
                     }
 
-                    // Ekleme
                     string insertSql = "INSERT INTO Users (Name, Nickname, Password, UserStatus) VALUES (@name, @nick, @pass, @status)";
                     using (SQLiteCommand cmd = new SQLiteCommand(insertSql, conn))
                     {
@@ -175,48 +152,76 @@ namespace MekanRehberi
                 return "Veritabanı Hatası: " + ex.Message;
             }
         }
+
+        public static void InsertUserRating(string userNick, int mekanId, int score, string comment)
+        {
+            using (var conn = new SQLiteConnection(userConnString))
+            {
+                conn.Open();
+                string query = "INSERT OR REPLACE INTO UserRatings (UserNickname, MekanId, Score, Comment) VALUES (@u, @m, @s, @c)";
+                using (var cmd = new SQLiteCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@u", userNick);
+                    cmd.Parameters.AddWithValue("@m", mekanId);
+                    cmd.Parameters.AddWithValue("@s", score);
+                    cmd.Parameters.AddWithValue("@c", comment);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
         public static void UpdateMekanRating(Mekan mekan)
-{
-    using (var conn = new SQLiteConnection("Data Source=Mekanlar.db"))
-    {
-        conn.Open();
-        using (var cmd = new SQLiteCommand(conn))
         {
-            cmd.CommandText = @"
-                UPDATE MekanTable
-                SET Rating = @rating,
-                    FavNumber = @fav,
-                    TotalScore = @totalScore,
-                    VoteCount = @voteCount
-                WHERE ID = @id";
+            using (var conn = new SQLiteConnection(placesConnString))  // ✔ Düzeltildi
+            {
+                conn.Open();
+                string sql = @"
+                    UPDATE Mekanlar
+                    SET Rating = @rating,
+                        TotalScore = @totalScore,
+                        VoteCount = @voteCount
+                    WHERE ID = @id";
 
-            cmd.Parameters.AddWithValue("@rating", mekan.AverageScore);
-            cmd.Parameters.AddWithValue("@fav", mekan.FavoriteCount);
-            cmd.Parameters.AddWithValue("@totalScore", mekan.TotalScore);
-            cmd.Parameters.AddWithValue("@voteCount", mekan.VoteCount);
-            cmd.Parameters.AddWithValue("@id", mekan.Id);
-            cmd.ExecuteNonQuery();
+                using (var cmd = new SQLiteCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@rating", mekan.AverageScore);
+                    cmd.Parameters.AddWithValue("@totalScore", mekan.TotalScore);
+                    cmd.Parameters.AddWithValue("@voteCount", mekan.VoteCount);
+                    cmd.Parameters.AddWithValue("@id", mekan.Id);
+                    cmd.ExecuteNonQuery();
+                }
+            }
         }
-    }
-}
 
-       public static void InsertUserRating(string userNick, int mekanId, int score, string comment)
-{
-    using (var conn = new SQLiteConnection("Data Source=UserDB.db"))
-    {
-        conn.Open();
-        string query = "INSERT INTO UserRatings (UserNickname, MekanId, Score, Comment) VALUES (@u, @m, @s, @c)";
-
-        using (var cmd = new SQLiteCommand(query, conn))
+        // 🔥 KULLANICI GİRİNCE KENDİ OYLARINI GERİ YÜKLER
+        public static void LoadUserRatings(User user)
         {
-            cmd.Parameters.AddWithValue("@u", userNick);
-            cmd.Parameters.AddWithValue("@m", mekanId);
-            cmd.Parameters.AddWithValue("@s", score);
-            cmd.Parameters.AddWithValue("@c", comment);
-            cmd.ExecuteNonQuery();
+            user.MyRatings.Clear();
+
+            using (var conn = new SQLiteConnection(userConnString))
+            {
+                conn.Open();
+                string query = "SELECT MekanId, Score, Comment FROM UserRatings WHERE UserNickname = @nick";
+                using (var cmd = new SQLiteCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@nick", user.Nickname);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            int mekanId = reader.GetInt32(0);
+                            int score = reader.GetInt32(1);
+                            string comment = reader.IsDBNull(2) ? "" : reader.GetString(2);
+
+                            Mekan mekan = AllCities.SelectMany(s => s.Mekanlar).FirstOrDefault(m => m.Id == mekanId);
+                            if (mekan != null)
+                                user.MyRatings.Add(new UserRatings(mekan, score, comment));
+                        }
+                    }
+                }
+            }
         }
-    }
-}
 
         public static User GetUserFromDb(string nickname, string password)
         {
@@ -224,7 +229,7 @@ namespace MekanRehberi
             {
                 conn.Open();
                 string sql = "SELECT * FROM Users WHERE Nickname = @nick AND Password = @pass";
-                
+
                 using (SQLiteCommand cmd = new SQLiteCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@nick", nickname);
