@@ -1,11 +1,11 @@
+using System;
 using System.Collections.Generic;
 
 namespace MekanRehberi
 {
     public class UserManager
     {
-        public static List<User> AllUsers { get; set; }= new List<User>();
-        
+        // Anlık giriş yapmış kullanıcıyı tutar
         public static User CurrentUser { get; set; } = null;
 
         public static string Register(User newUser)
@@ -14,31 +14,33 @@ namespace MekanRehberi
             {
                 return "Kullanıcı adı veya şifre boş olamaz.";
             }
-            else
-            {
-                foreach (var user in AllUsers)
-                {
-                    if (user.Nickname == newUser.Nickname)
-                    {
-                        return "Aynı kullanıcı adına sahip bir kullanıcı zaten bulunmakta.";
-                    }
-                }
-                AllUsers.Add(newUser);
-                return "Kayıt başarılı";
-            }
+
+            // Doğrudan veritabanına kayıt isteği gönderiyoruz
+            return DataManagement.AddUserToDb(newUser);
         }
 
         public static User Login(string username, string password)
         {
-            foreach (var user in AllUsers) 
+            // Veritabanından kullanıcıyı sorgula
+            User user = DataManagement.GetUserFromDb(username, password);
+
+            if (user != null)
             {
-                if (user.Nickname == username && user.Password == password)
-                {
-                    CurrentUser = user;
-                    return user;
-                }
+                // Giriş başarılı, global değişkene ata
+                CurrentUser = user;
+
+                // Kullanıcının eski puanlarını ve yorumlarını yükle
+                DataManagement.LoadUserRatings(CurrentUser);
+                
+                return user;
             }
-            return null;
+
+            return null; // Kullanıcı bulunamadı veya şifre yanlış
+        }
+        
+        public static void Logout()
+        {
+            CurrentUser = null;
         }
     }
 }
