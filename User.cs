@@ -23,25 +23,36 @@ namespace MekanRehberi
         }
 
         public void RateMekan(Mekan mekan, int score, string comment)
-        {
-            if (score < 1) score = 1;
-            if (score > 5) score = 5;
+{
+    if (score < 1) score = 1;
+    if (score > 5) score = 5;
 
-            UserRatings existingRating = MyRatings.Find(r => r.Mekan.Id == mekan.Id);
+    var existingRating = MyRatings.Find(r => r.Mekan.Id == mekan.Id);
 
-            if (existingRating != null)
-            {
-                mekan.UpdatePoint(existingRating.Score, score); 
-                existingRating.Score = score;
-                existingRating.Comment = comment;
-            }
-            else
-            {
-                mekan.AddPoint(score);
-                UserRatings newRating = new UserRatings(mekan, score, comment);
-                this.MyRatings.Add(newRating);
-            }
-        }
+    if (existingRating != null)
+    {
+        // Mekan puanını güncelle
+        mekan.TotalScore -= existingRating.Score;
+        mekan.TotalScore += score;
+
+        existingRating.Score = score;
+        existingRating.Comment = comment;
+
+        DataManagement.UpdateUserRating(this.Nickname, mekan.Id, score, comment);
+    }
+    else
+    {
+        mekan.AddPoint(score);
+        var newRating = new UserRatings(mekan, score, comment);
+        MyRatings.Add(newRating);
+
+        DataManagement.InsertUserRating(this.Nickname, mekan.Id, score, comment);
+    }
+
+    // Mekan tablosunu da güncelle
+    DataManagement.UpdateMekanRating(mekan);
+}
+
 
         public bool ToggleFavorite(Mekan mekan)
         {
