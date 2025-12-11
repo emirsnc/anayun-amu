@@ -10,7 +10,7 @@ namespace MekanRehberi
     public static class DataManagement
     {
         // -----------------------------------------------------------
-        // 1. BÖLÜM: MEKAN VERİLERİ (gezilecek_yerler.db - Sadece Okuma)
+        //  MEKAN VERİLERİ (gezilecek_yerler.db)
         // -----------------------------------------------------------
         public static List<Sehir> AllCities { get; set; } = new List<Sehir>();
 
@@ -23,13 +23,14 @@ namespace MekanRehberi
 
             if (!File.Exists(placesDbName))
             {
-                MessageBox.Show("Mekan veritabanı (gezilecek_yerler.db) bulunamadı!");
+                MessageBox.Show("Mekan veritabanı (gezilecek_yerler.db) bulunamadı! Lütfen dosyayı projenin olduğu klasöre atın.");
                 return;
             }
 
             using (SQLiteConnection conn = new SQLiteConnection(placesConnString))
             {
                 conn.Open();
+            
                 string sql = "SELECT * FROM Mekanlar";
 
                 using (SQLiteCommand cmd = new SQLiteCommand(sql, conn))
@@ -37,6 +38,7 @@ namespace MekanRehberi
                 {
                     while (reader.Read())
                     {
+                        //ŞEHİR İŞLEMLERİ
                         string dbCityName = reader["CityName"].ToString();
                         Sehir mevcutSehir = AllCities.FirstOrDefault(x => x.Name == dbCityName);
 
@@ -45,30 +47,36 @@ namespace MekanRehberi
                             mevcutSehir = new Sehir()
                             {
                                 Name = dbCityName,
-                                Plaka = 0,
+                                Plaka = 0, // DB'de plaka sütunu yoksa varsayılan 0
                                 Description = dbCityName + " şehri.",
                                 ImageFileURL = ""
                             };
                             AllCities.Add(mevcutSehir);
                         }
 
+                        //MEKAN İŞLEMLERİ
                         Mekan yeniMekan = new Mekan()
                         {
                             Id = Convert.ToInt32(reader["ID"]),
                             Name = reader["PlaceName"].ToString(),
-                            ImageUrl = reader["ImageUrl"].ToString()
+                            // Null kontrolü
+                            ImageUrl = reader["ImageUrl"] != DBNull.Value ? reader["ImageUrl"].ToString() : "",
+                            Type = reader["Type"] != DBNull.Value ? reader["Type"].ToString() : "Genel",
+                            Description = reader["Description"] != DBNull.Value ? reader["Description"].ToString() : ""
                         };
 
+                        //PUANLAMA MATEMATİĞİ
                         try
                         {
-                            double dbRating = Convert.ToDouble(reader["Rating"]);
-                            yeniMekan.VoteCount = 1;
-                            yeniMekan.TotalScore = (int)dbRating;
+                        
+                            yeniMekan.TotalScore = reader["TotalScore"] != DBNull.Value ? Convert.ToInt32(reader["TotalScore"]) : 0;
+                            yeniMekan.VoteCount = reader["VoteCount"] != DBNull.Value ? Convert.ToInt32(reader["VoteCount"]) : 0;
                         }
                         catch
                         {
-                            yeniMekan.VoteCount = 0;
+                            // Sütun yoksa veya hata olursa sıfırla
                             yeniMekan.TotalScore = 0;
+                            yeniMekan.VoteCount = 0;
                         }
 
                         mevcutSehir.Mekanlar.Add(yeniMekan);
@@ -78,7 +86,7 @@ namespace MekanRehberi
         }
 
         // -----------------------------------------------------------
-        // 2. BÖLÜM: KULLANICI VERİLERİ (KullaniciVerileri.db - Yazma/Okuma)
+        // KULLANICI VERİLERİ (KullaniciVerileri.db)
         // -----------------------------------------------------------
         private static string userDbName = "KullaniciVerileri.db";
         private static string userConnString = $"Data Source={userDbName};Version=3;";
@@ -92,7 +100,6 @@ namespace MekanRehberi
             {
                 conn.Open();
 
-                // USERS TABLOSU
                 string sqlUsers = @"
                     CREATE TABLE IF NOT EXISTS Users (
                         ID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,10 +108,8 @@ namespace MekanRehberi
                         Password TEXT,
                         UserStatus TEXT
                     );";
-
                 new SQLiteCommand(sqlUsers, conn).ExecuteNonQuery();
 
-                // USERRATINGS TABLOSU
                 string sqlRatings = @"
                     CREATE TABLE IF NOT EXISTS UserRatings (
                         ID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -114,7 +119,6 @@ namespace MekanRehberi
                         Comment TEXT,
                         UNIQUE(UserNickname, MekanId)
                     );";
-
                 new SQLiteCommand(sqlRatings, conn).ExecuteNonQuery();
             }
         }
@@ -126,8 +130,8 @@ namespace MekanRehberi
                 using (SQLiteConnection conn = new SQLiteConnection(userConnString))
                 {
                     conn.Open();
+                    // Önce kullanıcı adı var mı kontrol et
                     string checkSql = "SELECT COUNT(*) FROM Users WHERE Nickname = @nick";
-
                     using (SQLiteCommand cmd = new SQLiteCommand(checkSql, conn))
                     {
                         cmd.Parameters.AddWithValue("@nick", user.Nickname);
@@ -135,6 +139,7 @@ namespace MekanRehberi
                         if (count > 0) return "Bu kullanıcı adı zaten alınmış.";
                     }
 
+                    // Yoksa ekle
                     string insertSql = "INSERT INTO Users (Name, Nickname, Password, UserStatus) VALUES (@name, @nick, @pass, @status)";
                     using (SQLiteCommand cmd = new SQLiteCommand(insertSql, conn))
                     {
@@ -158,6 +163,7 @@ namespace MekanRehberi
             using (var conn = new SQLiteConnection(userConnString))
             {
                 conn.Open();
+                // INSERT OR REPLACE
                 string query = "INSERT OR REPLACE INTO UserRatings (UserNickname, MekanId, Score, Comment) VALUES (@u, @m, @s, @c)";
                 using (var cmd = new SQLiteCommand(query, conn))
                 {
@@ -172,7 +178,7 @@ namespace MekanRehberi
 
         public static void UpdateMekanRating(Mekan mekan)
         {
-            using (var conn = new SQLiteConnection(placesConnString))  // ✔ Düzeltildi
+            using (var conn = new SQLiteConnection(placesConnString))
             {
                 conn.Open();
                 string sql = @"
@@ -184,6 +190,7 @@ namespace MekanRehberi
 
                 using (var cmd = new SQLiteCommand(sql, conn))
                 {
+                    // AverageScore, Mekan sınıfındaki property'den otomatik hesaplanır
                     cmd.Parameters.AddWithValue("@rating", mekan.AverageScore);
                     cmd.Parameters.AddWithValue("@totalScore", mekan.TotalScore);
                     cmd.Parameters.AddWithValue("@voteCount", mekan.VoteCount);
@@ -193,7 +200,6 @@ namespace MekanRehberi
             }
         }
 
-        // 🔥 KULLANICI GİRİNCE KENDİ OYLARINI GERİ YÜKLER
         public static void LoadUserRatings(User user)
         {
             user.MyRatings.Clear();
@@ -214,6 +220,7 @@ namespace MekanRehberi
                             int score = reader.GetInt32(1);
                             string comment = reader.IsDBNull(2) ? "" : reader.GetString(2);
 
+                            // Mekanı AllCities listesinden bulup eşleştiriyoruz
                             Mekan mekan = AllCities.SelectMany(s => s.Mekanlar).FirstOrDefault(m => m.Id == mekanId);
                             if (mekan != null)
                                 user.MyRatings.Add(new UserRatings(mekan, score, comment));
