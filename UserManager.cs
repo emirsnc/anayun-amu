@@ -5,7 +5,7 @@ namespace MekanRehberi
 {
     public class UserManager
     {
-        // Anlık giriş yapmış kullanıcıyı tutar
+        // Sadece giriş yapmış kullanıcıyı hafızada tutuyoruz
         public static User CurrentUser { get; set; } = null;
 
         public static string Register(User newUser)
@@ -16,6 +16,7 @@ namespace MekanRehberi
             }
 
             // Doğrudan veritabanına kayıt isteği gönderiyoruz
+            // "AllUsers" listesine eklemeye gerek yok, veritabanına ekliyoruz.
             return DataManagement.AddUserToDb(newUser);
         }
 
@@ -26,10 +27,9 @@ namespace MekanRehberi
 
             if (user != null)
             {
-                // Giriş başarılı, global değişkene ata
                 CurrentUser = user;
 
-                // Kullanıcının eski puanlarını ve yorumlarını yükle
+                // Kullanıcı giriş yapınca eski puanlarını yükle
                 DataManagement.LoadUserRatings(CurrentUser);
                 
                 return user;
